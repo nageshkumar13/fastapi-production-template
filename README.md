@@ -176,6 +176,24 @@ Then start the development server:
 uvicorn app.main:app --reload
 ```
 
+## Run Tests
+
+Run the test suite with:
+
+```bash
+pytest
+```
+
+Current automated coverage includes:
+
+- `GET /health`
+- `GET /health/db`
+- signup success and duplicate signup handling
+- login success and invalid credential handling
+- protected `GET /users/me` with valid, missing, and invalid tokens
+
+The current test setup uses a simple reusable `TestClient` plus dependency overrides and an isolated SQLite test database for fast local runs.
+
 ## Notes
 
 - Routes stay thin while reusable database operations live in the service layer.
