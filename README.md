@@ -2,22 +2,18 @@
 
 A small, clean FastAPI starter template built for production-style backend projects.
 
-## V2 Database, Signup, Login, And Current User Auth
+## V2 Database, Auth, And Alembic Migrations
 
-This branch introduces the PostgreSQL foundation for version 2 and the first authentication-related flows: user signup, login with JWT access token generation, and a protected current-user endpoint.
+This branch adds production-style Alembic migrations on top of the existing PostgreSQL and authentication foundation.
 
 What is included in this chunk:
 
-- SQLAlchemy database setup
-- PostgreSQL connection via `DATABASE_URL`
-- A basic `users` table/model
-- Startup table creation with `Base.metadata.create_all(...)`
-- API health checks for both app and database
-- Password hashing with `passlib[bcrypt]`
-- `POST /auth/signup` for creating users
-- `POST /auth/login` for verifying email and password
-- JWT access token generation on successful login
-- `GET /users/me` protected by Bearer token authentication
+- PostgreSQL integration with SQLAlchemy
+- Signup and login with JWT access tokens
+- Protected `GET /users/me`
+- Service layer for reusable user/auth database operations
+- Alembic migration setup
+- Initial migration for the `users` table
 
 What is intentionally not included yet:
 
@@ -26,21 +22,34 @@ What is intentionally not included yet:
 - Permissions
 - Email verification
 - Password reset
-- Complex auth middleware
 
-Refresh tokens and broader auth flows will be added later.
+## Why Alembic
+
+Alembic is the migration tool used with SQLAlchemy to manage database schema changes over time.
+
+Why migrations are needed:
+
+- They make schema changes versioned and repeatable
+- They keep local, staging, and production databases in sync
+- They replace runtime table creation with explicit schema management
+
+The app no longer creates tables at startup with `Base.metadata.create_all(...)`. Database schema is now managed through Alembic migrations instead.
 
 ## Project Structure
 
 ```text
 fastapi-production-template/
+|-- alembic/
+|   |-- env.py
+|   |-- script.py.mako
+|   `-- versions/
+|       `-- 20260528_1005_create_users_table.py
+|-- alembic.ini
 |-- app/
 |   |-- config.py
 |   |-- database.py
 |   |-- dependencies/
 |   |   `-- auth.py
-|   |-- exceptions.py
-|   |-- logger_config.py
 |   |-- main.py
 |   |-- models/
 |   |   `-- user.py
@@ -51,9 +60,9 @@ fastapi-production-template/
 |   |-- schemas/
 |   |   `-- auth.py
 |   |-- security.py
-|   |-- token.py
-|   `-- utils/
-|-- logs/
+|   |-- services/
+|   |   `-- user_service.py
+|   `-- token.py
 |-- .env.example
 |-- requirements.txt
 `-- README.md
@@ -61,15 +70,10 @@ fastapi-production-template/
 
 ## Setup
 
-Create a virtual environment:
+Create and activate a virtual environment:
 
 ```bash
 python -m venv venv
-```
-
-Activate it on Windows PowerShell:
-
-```powershell
 venv\Scripts\activate
 ```
 
@@ -77,22 +81,6 @@ Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-```
-
-## PostgreSQL Setup
-
-Create a local PostgreSQL database named `fastapi_template_db`.
-
-If you already have PostgreSQL installed, one simple option is:
-
-```bash
-createdb fastapi_template_db
-```
-
-Or from `psql`:
-
-```sql
-CREATE DATABASE fastapi_template_db;
 ```
 
 ## Environment Variables
@@ -110,121 +98,87 @@ JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
+## Alembic Commands
+
+Useful commands for local development:
+
+```bash
+dropdb fastapi_template_db
+createdb fastapi_template_db
+alembic upgrade head
+alembic current
+alembic history
+alembic revision --autogenerate -m "message"
+```
+
+## Local Database Reset And Alembic Workflow
+
+### Option A: Clean reset for local development
+
+Use this when you want a fresh local database with the current migration history applied from scratch.
+
+```bash
+dropdb fastapi_template_db
+createdb fastapi_template_db
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+### Option B: Stamp existing local database
+
+Use this only if your existing local database schema already matches the current migration state.
+
+```bash
+alembic stamp head
+```
+
+What this does:
+
+- It marks the database as migration-managed
+- It does not create tables again
+- It does not apply missing schema changes
+
+If your existing local database was created earlier with `create_all()` and the schema already matches the current migration, `alembic stamp head` is the practical way to start tracking it with Alembic.
+
+## Warning
+
+Do not use `Base.metadata.create_all()` anymore for this app.
+
+Alembic is now the source of truth for schema changes.
+
+## Future Workflow
+
+When a model changes:
+
+1. Edit the SQLAlchemy model.
+2. Generate a migration.
+3. Review the generated migration file carefully.
+4. Run `alembic upgrade head`.
+5. Test the app.
+
+Example command:
+
+```bash
+alembic revision --autogenerate -m "add new field"
+```
+
 ## Run The App
 
-Start the development server:
+Apply migrations first:
+
+```bash
+alembic upgrade head
+```
+
+Then start the development server:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-On startup, the app will connect to PostgreSQL and create the `users` table if it does not already exist.
-
-## Health Checks
-
-Application health:
-
-```http
-GET /health
-```
-
-Database health:
-
-```http
-GET /health/db
-```
-
-## Signup Route
-
-Create a new user:
-
-```http
-POST /auth/signup
-```
-
-Request body:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "strongpass123"
-}
-```
-
-## Login Route
-
-Verify user credentials and receive an access token:
-
-```http
-POST /auth/login
-```
-
-Request body:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "strongpass123"
-}
-```
-
-Successful response:
-
-```json
-{
-  "message": "Login credentials verified successfully",
-  "access_token": "jwt-token-here",
-  "token_type": "bearer",
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "is_active": true,
-    "created_at": "2026-05-28T12:00:00Z"
-  }
-}
-```
-
-Token payload:
-
-- `sub` contains the user email
-- `user_id` contains the user id
-- `exp` contains the token expiry time
-
-## Current User Route
-
-Call `POST /auth/login` first and copy the `access_token` from the response.
-
-Then call:
-
-```http
-GET /users/me
-Authorization: Bearer <access_token>
-```
-
-Successful response:
-
-```json
-{
-  "id": 1,
-  "email": "user@example.com",
-  "is_active": true,
-  "created_at": "2026-05-28T12:00:00Z"
-}
-```
-
-Invalid authentication behavior:
-
-- Missing token returns HTTP `401`
-- Invalid token returns HTTP `401`
-- Expired token returns HTTP `401`
-- Inactive user returns HTTP `403`
-
-The password hash is never returned in any API response.
-
 ## Notes
 
-- Login returns a JWT access token with token type `bearer`.
-- `GET /users/me` is the first protected route in the project.
-- Routes stay thin while reusable database operations now live in the service layer.
-- This keeps auth and user data access easier to maintain as the app grows.
-- Refresh tokens are intentionally not implemented yet.
+- Routes stay thin while reusable database operations live in the service layer.
+- Database schema is now migration-managed through Alembic.
+- Application API behavior is unchanged in this chunk.
+- No new auth features were added.
