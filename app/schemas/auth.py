@@ -30,3 +30,23 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     created_at: datetime
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        normalized_email = value.strip().lower()
+        if "@" not in normalized_email or "." not in normalized_email.split("@")[-1]:
+            raise ValueError("A valid email address is required")
+        return normalized_email
+
+
+class LoginResponse(BaseModel):
+    message: str
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
