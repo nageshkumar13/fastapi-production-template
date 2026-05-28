@@ -146,6 +146,35 @@ Current automated coverage includes:
 
 The current test setup uses a reusable `TestClient`, dependency overrides, and an isolated SQLite test database for fast local runs.
 
+## Code Quality
+
+Run lint checks with:
+
+```bash
+ruff check .
+```
+
+Format the codebase with:
+
+```bash
+ruff format .
+```
+
+Check formatting without modifying files:
+
+```bash
+ruff format --check .
+```
+
+Suggested local verification before pushing:
+
+```bash
+python -m compileall app
+pytest
+ruff check .
+ruff format --check .
+```
+
 ## Notes
 
 - Routes stay thin while reusable database operations live in the service layer.

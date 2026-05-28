@@ -19,7 +19,9 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("APP_ENV", "ENVIRONMENT"),
     )
     DEBUG: bool = True
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/fastapi_template_db"
+    DATABASE_URL: str = (
+        "postgresql+psycopg2://postgres:postgres@localhost:5432/fastapi_template_db"
+    )
     JWT_SECRET_KEY: str = "change-this-to-a-long-random-secret-key"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

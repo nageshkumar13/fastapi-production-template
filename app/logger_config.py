@@ -4,7 +4,6 @@ from pathlib import Path
 
 from app.config import get_settings
 
-
 LOG_DIR = Path("logs")
 LOG_DIR.mkdir(exist_ok=True)
 

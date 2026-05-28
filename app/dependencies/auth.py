@@ -1,6 +1,6 @@
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, ExpiredSignatureError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -19,7 +19,10 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     if not credentials or credentials.scheme.lower() != "bearer":
-        raise AppException("Authentication credentials were not provided", status_code=401)
+        raise AppException(
+            "Authentication credentials were not provided",
+            status_code=401,
+        )
 
     token = credentials.credentials
 

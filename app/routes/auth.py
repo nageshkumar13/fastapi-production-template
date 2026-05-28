@@ -9,11 +9,14 @@ from app.security import hash_password, verify_password
 from app.services.user_service import create_user, get_user_by_email
 from app.token import create_access_token
 
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)):
     existing_user = get_user_by_email(db, payload.email)
     if existing_user:

@@ -23,7 +23,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="A clean, minimal FastAPI starter template for production-ready backend projects.",
+    description=(
+        "A clean, minimal FastAPI starter template for "
+        "production-ready backend projects."
+    ),
     debug=settings.DEBUG,
     lifespan=lifespan,
 )
