@@ -3,8 +3,9 @@ from typing import Optional
 
 from jose import jwt
 
-from app.config import settings
+from app.config import get_settings
 
+settings = get_settings()
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

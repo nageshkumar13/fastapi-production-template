@@ -3,12 +3,13 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, ExpiredSignatureError, jwt
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.config import get_settings
 from app.database import get_db
 from app.exceptions import AppException
 from app.models.user import User
 from app.services.user_service import get_user_by_id
 
+settings = get_settings()
 
 bearer_scheme = HTTPBearer(auto_error=False)
 

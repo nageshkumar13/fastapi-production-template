@@ -1,25 +1,44 @@
-import os
+from functools import lru_cache
 
-from dotenv import load_dotenv
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-load_dotenv()
 
-
-class Settings:
-    APP_NAME: str = os.getenv("APP_NAME", "FastAPI Production Template")
-    APP_VERSION: str = os.getenv("APP_VERSION", "1.0.0")
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-    DEBUG: bool = os.getenv("DEBUG", "true").lower() == "true"
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql+psycopg2://postgres:postgres@localhost:5432/fastapi_template_db",
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",
     )
-    JWT_SECRET_KEY: str = os.getenv(
-        "JWT_SECRET_KEY",
-        "change-this-to-a-long-random-secret-key",
+
+    APP_NAME: str = "FastAPI Production Template"
+    APP_VERSION: str = "1.0.0"
+    APP_ENV: str = Field(
+        default="development",
+        validation_alias=AliasChoices("APP_ENV", "ENVIRONMENT"),
     )
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    DEBUG: bool = True
+    DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/fastapi_template_db"
+    JWT_SECRET_KEY: str = "change-this-to-a-long-random-secret-key"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug_value(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "development"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "production"}:
+                return False
+        return value
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

@@ -2,105 +2,77 @@
 
 A small, clean FastAPI starter template built for production-style backend projects.
 
-## V2 Database, Auth, And Alembic Migrations
+## V2 Database, Auth, Alembic, And Tests
 
-This branch adds production-style Alembic migrations on top of the existing PostgreSQL and authentication foundation.
+This branch includes PostgreSQL, SQLAlchemy, Alembic migrations, JWT-based authentication, protected routes, a service layer, and a foundational pytest suite.
 
-What is included in this chunk:
+## Settings Structure
 
-- PostgreSQL integration with SQLAlchemy
-- Signup and login with JWT access tokens
-- Protected `GET /users/me`
-- Service layer for reusable user/auth database operations
-- Alembic migration setup
-- Initial migration for the `users` table
+Application configuration now uses a centralized `Settings` class in `app/config.py` powered by `pydantic-settings`.
 
-What is intentionally not included yet:
+What this gives us:
 
-- Refresh tokens
-- Roles
-- Permissions
-- Email verification
-- Password reset
+- typed settings with centralized defaults
+- `.env` loading for local development
+- one cached `get_settings()` entry point
+- cleaner config usage across the app
 
-## Why Alembic
+This matters because database, JWT, logging, and app metadata now all read from the same source instead of relying on scattered environment handling.
 
-Alembic is the migration tool used with SQLAlchemy to manage database schema changes over time.
+## Environment Configuration
 
-Why migrations are needed:
+Copy `.env.example` to `.env` and update values as needed.
 
-- They make schema changes versioned and repeatable
-- They keep local, staging, and production databases in sync
-- They replace runtime table creation with explicit schema management
-
-The app no longer creates tables at startup with `Base.metadata.create_all(...)`. Database schema is now managed through Alembic migrations instead.
-
-## Project Structure
-
-```text
-fastapi-production-template/
-|-- alembic/
-|   |-- env.py
-|   |-- script.py.mako
-|   `-- versions/
-|       `-- 20260528_1005_create_users_table.py
-|-- alembic.ini
-|-- app/
-|   |-- config.py
-|   |-- database.py
-|   |-- dependencies/
-|   |   `-- auth.py
-|   |-- main.py
-|   |-- models/
-|   |   `-- user.py
-|   |-- routes/
-|   |   |-- auth.py
-|   |   |-- health.py
-|   |   `-- users.py
-|   |-- schemas/
-|   |   `-- auth.py
-|   |-- security.py
-|   |-- services/
-|   |   `-- user_service.py
-|   `-- token.py
-|-- .env.example
-|-- requirements.txt
-`-- README.md
-```
-
-## Setup
-
-Create and activate a virtual environment:
-
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-## Environment Variables
-
-Copy `.env.example` to `.env` and set your database and JWT configuration:
+Current settings:
 
 ```env
 APP_NAME=FastAPI Production Template
 APP_VERSION=1.0.0
-ENVIRONMENT=development
+APP_ENV=development
 DEBUG=true
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/fastapi_template_db
-JWT_SECRET_KEY=change-this-to-a-long-random-secret-key
+JWT_SECRET_KEY=replace-this-with-a-long-random-secret-in-production
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
 
-## Alembic Commands
+Required application settings:
 
-Useful commands for local development:
+- `DATABASE_URL`
+- `JWT_SECRET_KEY`
+- `JWT_ALGORITHM`
+- `ACCESS_TOKEN_EXPIRE_MINUTES`
+
+Useful app metadata and runtime settings:
+
+- `APP_NAME`
+- `APP_VERSION`
+- `APP_ENV`
+- `DEBUG`
+
+## Development vs Production
+
+Typical development configuration:
+
+- `APP_ENV=development`
+- `DEBUG=true`
+- more verbose logging
+- local `.env` driven setup
+
+Typical production configuration:
+
+- `APP_ENV=production`
+- `DEBUG=false`
+- cleaner `INFO`-level logging
+- real production secrets and database URL
+
+## PostgreSQL And Alembic
+
+Alembic is the source of truth for schema changes.
+
+Do not use `Base.metadata.create_all()` anymore for this app.
+
+Useful commands:
 
 ```bash
 dropdb fastapi_template_db
@@ -111,11 +83,9 @@ alembic history
 alembic revision --autogenerate -m "message"
 ```
 
-## Local Database Reset And Alembic Workflow
+### Local Database Reset And Alembic Workflow
 
-### Option A: Clean reset for local development
-
-Use this when you want a fresh local database with the current migration history applied from scratch.
+Option A: Clean reset for local development
 
 ```bash
 dropdb fastapi_template_db
@@ -124,43 +94,25 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-### Option B: Stamp existing local database
+Option B: Stamp existing local database
 
-Use this only if your existing local database schema already matches the current migration state.
+Use this only when the existing schema already matches the current migration history.
 
 ```bash
 alembic stamp head
 ```
 
-What this does:
+This marks the database as migration-managed without creating tables again.
 
-- It marks the database as migration-managed
-- It does not create tables again
-- It does not apply missing schema changes
-
-If your existing local database was created earlier with `create_all()` and the schema already matches the current migration, `alembic stamp head` is the practical way to start tracking it with Alembic.
-
-## Warning
-
-Do not use `Base.metadata.create_all()` anymore for this app.
-
-Alembic is now the source of truth for schema changes.
-
-## Future Workflow
+### Future Migration Workflow
 
 When a model changes:
 
 1. Edit the SQLAlchemy model.
 2. Generate a migration.
-3. Review the generated migration file carefully.
+3. Review the migration file.
 4. Run `alembic upgrade head`.
 5. Test the app.
-
-Example command:
-
-```bash
-alembic revision --autogenerate -m "add new field"
-```
 
 ## Run The App
 
@@ -170,7 +122,7 @@ Apply migrations first:
 alembic upgrade head
 ```
 
-Then start the development server:
+Then start the server:
 
 ```bash
 uvicorn app.main:app --reload
@@ -192,11 +144,11 @@ Current automated coverage includes:
 - login success and invalid credential handling
 - protected `GET /users/me` with valid, missing, and invalid tokens
 
-The current test setup uses a simple reusable `TestClient` plus dependency overrides and an isolated SQLite test database for fast local runs.
+The current test setup uses a reusable `TestClient`, dependency overrides, and an isolated SQLite test database for fast local runs.
 
 ## Notes
 
 - Routes stay thin while reusable database operations live in the service layer.
-- Database schema is now migration-managed through Alembic.
-- Application API behavior is unchanged in this chunk.
-- No new auth features were added.
+- Database schema is migration-managed through Alembic.
+- Configuration is centralized through the settings layer.
+- Application behavior is unchanged in this chunk.
